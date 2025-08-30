@@ -32,15 +32,13 @@ class ToDoTile extends StatelessWidget {
               activeColor: colors.primary, // accent color
               checkColor: colors.onPrimary, // contrast on accent
             ),
-            Expanded(
-              child: Text(
-                taskName,
-                style: TextStyle(
-                  color: colors.onSurface, // contrast text
-                  decoration: taskCompleted
-                      ? TextDecoration.lineThrough
-                      : TextDecoration.none,
-                ),
+            Text(
+              taskName,
+              style: TextStyle(
+                color: colors.onSurface, // contrast text
+                decoration: taskCompleted
+                    ? TextDecoration.lineThrough
+                    : TextDecoration.none,
               ),
             ),
           ],
