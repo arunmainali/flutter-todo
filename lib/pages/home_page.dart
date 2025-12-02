@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:todo_list/data/database.dart';
-import 'package:todo_list/util/dialog_box.dart';
 import 'package:todo_list/util/todo_tile.dart';
+import 'package:todo_list/util/create_task_dialog.dart';
+import 'edit_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -17,74 +18,122 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void initState() {
+    super.initState();
     if (_myBox.get("TODOLIST") == null) {
-    // if this is the first time ever opening the app, then create default (empty) data
+      // first run: create empty list
       db.createInitialData();
+      db.updateDataBase();
     } else {
       db.loadData();
     }
-
-    super.initState();
   }
 
-  final _controller = TextEditingController();
-
+  /// Toggle completed state for item at [index]
   void checkBoxChanged(bool? value, int index) {
     setState(() {
-      db.toDoList[index][1] = !db.toDoList[index][1];
+      final item = db.toDoList[index] as Map<String, dynamic>;
+      // ensure key exists; flip the bool (default false if missing)
+      final current = item['completed'] is bool ? item['completed'] as bool : false;
+      item['completed'] = !current;
     });
     db.updateDataBase();
   }
 
-  void saveNewTask() {
-    setState(() {
-      db.toDoList.add([_controller.text, false]);
-      _controller.clear();
-    });
-    Navigator.of(context).pop();
-    db.updateDataBase();
-  }
-
+  /// Show dialog to create a new task (CreateTaskDialog handles validation)
   void createNewTask() {
     showDialog(
       context: context,
-      builder: (context) {
-        return DialogBox(
-          controller: _controller,
-          onSave: saveNewTask,
-          onCancel: () => Navigator.of(context).pop(),
-        );
-      },
+      builder: (context) => CreateTaskDialog(
+        onSave: (name, subtitle, dueDate) {
+          setState(() {
+            db.toDoList.add({
+              "name": name,
+              "subtitle": subtitle,
+              // store as ISO string (null if not provided)
+              "dueDate": dueDate?.toIso8601String(),
+              "completed": false,
+            });
+          });
+          Navigator.pop(context);
+          db.updateDataBase();
+        },
+        onCancel: () => Navigator.pop(context),
+      ),
     );
   }
 
-  void deleteTask(index) {
-    setState(() {
-      db.toDoList.removeAt(index);
-    });
-    db.updateDataBase();
+  /// Ask for confirmation before deleting
+  void confirmAndDelete(int index) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete this item?"),
+        content: const Text("Are you sure you want to delete it?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                db.toDoList.removeAt(index);
+              });
+              Navigator.pop(context);
+              db.updateDataBase();
+            },
+            child: const Text("Delete"),
+          )
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    // Ensure db.toDoList is a list to avoid build-time errors
+    final listLength = db.toDoList.length;
+
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: Text('Todo'),
-        elevation: 0,
-      ),
+      appBar: AppBar(title: const Text('Todo'), elevation: 0),
       floatingActionButton: FloatingActionButton(
         onPressed: createNewTask,
-        child: Icon(Icons.add,),
+        child: const Icon(Icons.add),
       ),
       body: ListView.builder(
-        itemCount: db.toDoList.length,
+        itemCount: listLength,
         itemBuilder: (context, index) {
+          // read item as a Map
+          final item = db.toDoList[index] as Map<String, dynamic>;
+
+          // parse values safely
+          final name = item['name']?.toString() ?? '';
+          final subtitle = item['subtitle']?.toString();
+          final dueDateIso = item['dueDate'] as String?;
+          final dueDate = dueDateIso == null ? null : DateTime.tryParse(dueDateIso);
+          final completed = item['completed'] is bool ? item['completed'] as bool : false;
+
           return ToDoTile(
-            taskName: db.toDoList[index][0],
-            taskCompleted: db.toDoList[index][1],
+            name: name,
+            subtitle: subtitle,
+            dueDate: dueDate,
+            completed: completed,
             onChanged: (value) => checkBoxChanged(value, index),
-            deleteFunction: (context) => deleteTask(index),
+            // ToDoTile's Slidable calls the provided function with (BuildContext) parameter,
+            // so provide a closure which ignores the passed BuildContext and calls our confirmAndDelete.
+            deleteTask: (context) => confirmAndDelete(index),
+            onTapEdit: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => EditPage(index: index, dataBase: db),
+                ),
+              ).then((_) {
+                // refresh state after possible edit
+                setState(() {});
+              });
+            },
           );
         },
       ),
