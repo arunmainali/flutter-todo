@@ -20,7 +20,6 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     if (_myBox.get("TODOLIST") == null) {
-      // first run: create empty list
       db.createInitialData();
       db.updateDataBase();
     } else {
@@ -28,18 +27,15 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  /// Toggle completed state for item at [index]
   void checkBoxChanged(bool? value, int index) {
     setState(() {
       final item = db.toDoList[index] as Map<String, dynamic>;
-      // ensure key exists; flip the bool (default false if missing)
       final current = item['completed'] is bool ? item['completed'] as bool : false;
       item['completed'] = !current;
     });
     db.updateDataBase();
   }
 
-  /// Show dialog to create a new task (CreateTaskDialog handles validation)
   void createNewTask() {
     showDialog(
       context: context,
@@ -49,7 +45,6 @@ class _HomePageState extends State<HomePage> {
             db.toDoList.add({
               "name": name,
               "subtitle": subtitle,
-              // store as ISO string (null if not provided)
               "dueDate": dueDate?.toIso8601String(),
               "completed": false,
             });
@@ -62,13 +57,12 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// Ask for confirmation before deleting
   void confirmAndDelete(int index) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Delete this item?"),
-        content: const Text("Are you sure you want to delete it?"),
+        content: const Text("You sure you want to remove it?"),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -76,9 +70,7 @@ class _HomePageState extends State<HomePage> {
           ),
           ElevatedButton(
             onPressed: () {
-              setState(() {
-                db.toDoList.removeAt(index);
-              });
+              setState(() => db.toDoList.removeAt(index));
               Navigator.pop(context);
               db.updateDataBase();
             },
@@ -91,53 +83,62 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // Ensure db.toDoList is a list to avoid build-time errors
-    final listLength = db.toDoList.length;
+    final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text('Todo'), elevation: 0),
+      backgroundColor: colors.surfaceVariant.withOpacity(0.25),
+      appBar: AppBar(
+        title: const Text("Things To Do"),
+        backgroundColor: colors.surface,
+        elevation: 0,
+        scrolledUnderElevation: 3,
+      ),
+
       floatingActionButton: FloatingActionButton(
         onPressed: createNewTask,
-        child: const Icon(Icons.add),
+        backgroundColor: colors.primary,
+        child: const Icon(Icons.add, size: 28),
       ),
-      body:
-       ListView.builder(
-        itemCount: listLength,
-        itemBuilder: (context, index) {
-          // read item as a Map
-          final item = db.toDoList[index] as Map<String, dynamic>;
 
-          // parse values safely
-          final name = item['name']?.toString() ?? '';
-          final subtitle = item['subtitle']?.toString();
-          final dueDateIso = item['dueDate'] as String?;
-          final dueDate = dueDateIso == null ? null : DateTime.tryParse(dueDateIso);
-          final completed = item['completed'] is bool ? item['completed'] as bool : false;
+      body: db.toDoList.isEmpty
+          ? const Center(
+              child: Text(
+                "Nothing here yet.\nTap + to create one.",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16),
+              ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.only(top: 15, bottom: 80),
+              itemCount: db.toDoList.length,
+              itemBuilder: (context, index) {
+                final item = db.toDoList[index] as Map<String, dynamic>;
 
-          return ToDoTile(
-            name: name,
-            subtitle: subtitle,
-            dueDate: dueDate,
-            completed: completed,
-            onChanged: (value) => checkBoxChanged(value, index),
-            // ToDoTile's Slidable calls the provided function with (BuildContext) parameter,
-            // so provide a closure which ignores the passed BuildContext and calls our confirmAndDelete.
-            deleteTask: (context) => confirmAndDelete(index),
-            onTapEdit: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => EditPage(index: index, dataBase: db),
-                ),
-              ).then((_) {
-                // refresh state after possible edit
-                setState(() {});
-              });
-            },
-          );
-        },
-      ),
+                final name = item['name']?.toString() ?? '';
+                final subtitle = item['subtitle']?.toString();
+                final dueIso = item['dueDate'] as String?;
+                final dueDate = dueIso == null ? null : DateTime.tryParse(dueIso);
+                final completed =
+                    item['completed'] is bool ? item['completed'] as bool : false;
+
+                return ToDoTile(
+                  name: name,
+                  subtitle: subtitle,
+                  dueDate: dueDate,
+                  completed: completed,
+                  onChanged: (v) => checkBoxChanged(v, index),
+                  deleteTask: (context) => confirmAndDelete(index),
+                  onTapEdit: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => EditPage(index: index, dataBase: db),
+                      ),
+                    ).then((_) => setState(() {}));
+                  },
+                );
+              },
+            ),
     );
   }
 }
