@@ -132,7 +132,7 @@ Widget buildFilterButton(String text, int index) {
       backgroundColor: const Color(0xFFF8F7F4),
       appBar: AppBar(
         title: const Text("Things To Do"),
-        backgroundColor: colors.surface,
+        backgroundColor: const Color(0xFFF8F7F4),
         elevation: 0,
         scrolledUnderElevation: 3,
       ),
@@ -145,17 +145,6 @@ Widget buildFilterButton(String text, int index) {
 
       body: Column(
   children: [
-    const SizedBox(height: 20),
-
-    // "Things To Do" heading
-    Text(
-      "Things To Do",
-      style: const TextStyle(
-        fontSize: 26,
-        fontWeight: FontWeight.bold,
-      ),
-    ),
-
     const SizedBox(height: 18),
 
     // FILTER BUTTON BAR
