@@ -13,12 +13,15 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  // 0 = All, 1 = Active, 2 = Completed
+  int _filterIndex = 0;
   final _myBox = Hive.box('mybox');
   ToDoDataBase db = ToDoDataBase();
 
   @override
   void initState() {
     super.initState();
+    Hive.box('mybox').clear();
     if (_myBox.get("TODOLIST") == null) {
       db.createInitialData();
       db.updateDataBase();
@@ -26,6 +29,18 @@ class _HomePageState extends State<HomePage> {
       db.loadData();
     }
   }
+
+  List<Map<String, dynamic>> get filteredTasks {
+    if (_filterIndex == 1) {
+      // Active only
+      return db.toDoList.where((task) => task['completed'] == false).toList();
+    } else if (_filterIndex == 2) {
+      // Completed only
+      return db.toDoList.where((task) => task['completed'] == true).toList();
+    }
+    return db.toDoList; // All
+  }
+
 
   void checkBoxChanged(bool? value, int index) {
     setState(() {
@@ -86,7 +101,7 @@ class _HomePageState extends State<HomePage> {
     final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: colors.surfaceVariant.withOpacity(0.25),
+      backgroundColor: const Color(0xFFF8F7F4),
       appBar: AppBar(
         title: const Text("Things To Do"),
         backgroundColor: colors.surface,
