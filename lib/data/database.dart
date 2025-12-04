@@ -1,55 +1,34 @@
 import 'package:hive_flutter/hive_flutter.dart';
 
 class ToDoDataBase {
+  // The RAM (Memory) list
   List<Map<String, dynamic>> toDoList = [];
 
+  // Reference the Hive box
   final _myBox = Hive.box('mybox');
 
+  // Run this only if this is the 1st time ever opening the app
   void createInitialData() {
     toDoList = [];
   }
 
+  // Load the data from database
   void loadData() {
-    final raw = _myBox.get("TODOLIST");
-    if (raw != null && raw is List) {
-      toDoList = raw.map<Map<String, dynamic>>((item) {
-        // already a map -> copy safely
-        if (item is Map) return Map<String, dynamic>.from(item);
+    final rawData = _myBox.get("TODOLIST");
 
-        // legacy/alternate format: a List like [name, subtitle, dueDate, completed]
-        if (item is List) {
-          final name = item.isNotEmpty ? (item[0]?.toString() ?? '') : '';
-          final subtitle = item.length > 1 ? (item[1]?.toString()) : null;
-          final dueDateVal = item.length > 2 ? item[2] : null;
-          final dueDate = dueDateVal is DateTime ? dueDateVal.toIso8601String() : dueDateVal?.toString();
-          final completed = item.length > 3
-              ? (item[3] is bool ? item[3] : item[3].toString().toLowerCase() == 'true')
-              : false;
-          return {
-            "name": name,
-            "subtitle": subtitle,
-            "dueDate": dueDate,
-            "completed": completed,
-          };
-        }
-
-        // fallback: try to coerce to a map, otherwise create a minimal item
-        try {
-          return Map<String, dynamic>.from(item);
-        } catch (_) {
-          return {
-            "name": item?.toString() ?? '',
-            "subtitle": null,
-            "dueDate": null,
-            "completed": false,
-          };
-        }
+    if (rawData != null) {
+      // Hive returns a List<dynamic>. We must safely cast each item
+      // to Map<String, dynamic> so Flutter can use it.
+      toDoList = rawData.map<Map<String, dynamic>>((item) {
+        return Map<String, dynamic>.from(item);
       }).toList();
     } else {
-      toDoList = [];
+      // If rawData is null, it means this is the first time running the app
+      createInitialData();
     }
   }
 
+  // Update the database
   void updateDataBase() {
     _myBox.put("TODOLIST", toDoList);
   }
