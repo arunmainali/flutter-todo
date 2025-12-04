@@ -162,7 +162,7 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
             Wrap(
               spacing: 8,
               runSpacing: 6,
-              children: ["low", "medium", "urgent"].map((priority) {
+              children: ["low", "med", "urgent"].map((priority) {
                 final isSelected = _selectedPriority == priority;
                 return ChoiceChip(
                   label: Text(priority.toUpperCase()),
