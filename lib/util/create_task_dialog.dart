@@ -17,85 +17,132 @@ class CreateTaskDialog extends StatefulWidget {
 class _CreateTaskDialogState extends State<CreateTaskDialog> {
   final _nameController = TextEditingController();
   final _subtitleController = TextEditingController();
-
   DateTime? _selectedDate;
 
   Future pickDueDate() async {
     final now = DateTime.now();
-    final selected = await showDatePicker(
+    final picked = await showDatePicker(
       context: context,
       initialDate: now,
       firstDate: now,
       lastDate: DateTime(now.year + 10),
     );
-    if (selected != null) {
-      setState(() => _selectedDate = selected);
+
+    if (picked != null) {
+      setState(() => _selectedDate = picked);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context).colorScheme;
 
-    return AlertDialog(
-      title: Text("Create To-Do"),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _nameController,
-            decoration: InputDecoration(
-              labelText: "Task name *",
-            ),
-          ),
-          TextField(
-            controller: _subtitleController,
-            decoration: InputDecoration(
-              labelText: "Subtitle (optional)",
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _selectedDate == null
-                      ? "No due date"
-                      : "Due: ${_selectedDate!.toLocal()}".split(" ").first,
-                ),
-              ),
-              TextButton(
-                onPressed: pickDueDate,
-                child: Text("Pick date"),
-              )
-            ],
-          ),
-        ],
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
       ),
-      actions: [
-        TextButton(
-          onPressed: widget.onCancel,
-          child: Text("Cancel"),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(22, 22, 22, 14),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+
+            Text(
+              "New Task",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+
+            const SizedBox(height: 18),
+
+            TextField(
+              controller: _nameController,
+              decoration: InputDecoration(
+                labelText: "Title",
+                labelStyle: TextStyle(color: Colors.grey[700]),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+
+            const SizedBox(height: 14),
+
+            TextField(
+              controller: _subtitleController,
+              decoration: InputDecoration(
+                labelText: "Notes (optional)",
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              maxLines: 2,
+            ),
+
+            const SizedBox(height: 14),
+
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _selectedDate == null
+                        ? "No deadline"
+                        : "Due ${_selectedDate!.toLocal()}".split(" ").first,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: pickDueDate,
+                  child: Text("Pick date"),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: widget.onCancel,
+                  child: Text("Cancel"),
+                ),
+                const SizedBox(width: 6),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.primary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: () {
+                    final title = _nameController.text.trim();
+                    if (title.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("Task name is required")),
+                      );
+                      return;
+                    }
+
+                    widget.onSave(
+                      title,
+                      _subtitleController.text.trim().isEmpty
+                          ? null
+                          : _subtitleController.text.trim(),
+                      _selectedDate,
+                    );
+                  },
+                  child: Text("Create"),
+                ),
+              ],
+            ),
+          ],
         ),
-        ElevatedButton(
-          onPressed: () {
-            if (_nameController.text.trim().isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text("Task name is required.")),
-              );
-              return;
-            }
-            widget.onSave(
-              _nameController.text.trim(),
-              _subtitleController.text.trim().isEmpty
-                  ? null
-                  : _subtitleController.text.trim(),
-              _selectedDate,
-            );
-          },
-          child: Text("Save"),
-        ),
-      ],
+      ),
     );
   }
 }
