@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class CreateTaskDialog extends StatefulWidget {
-  final void Function(String title, String? subtitle, DateTime? date) onSave;
+  final void Function(String title, String? subtitle, DateTime? date, String priority) onSave;
   final VoidCallback onCancel;
 
   const CreateTaskDialog({
@@ -19,6 +19,7 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
   final TextEditingController _subtitleCtrl = TextEditingController();
 
   DateTime? _selectedDate;
+  String _selectedPriority = "medium"; // default priority
 
   bool _titleError = false;
 
@@ -32,6 +33,7 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
       _titleCtrl.text.trim(),
       _subtitleCtrl.text.trim().isEmpty ? null : _subtitleCtrl.text.trim(),
       _selectedDate,
+      _selectedPriority,
     );
   }
 
@@ -46,6 +48,19 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
 
     if (picked != null) {
       setState(() => _selectedDate = picked);
+    }
+  }
+
+  Color _getPriorityColor(String priority) {
+    switch (priority) {
+      case "urgent":
+        return Colors.red;
+      case "medium":
+        return Colors.orange;
+      case "low":
+        return Colors.green;
+      default:
+        return Colors.grey;
     }
   }
 
@@ -135,6 +150,35 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
                   onPressed: _pickDate,
                   child: const Text("Pick date"),
                 ),
+              ],
+            ),
+
+            const SizedBox(height: 14),
+
+            // Priority selector
+            Row(
+              children: [
+                const Text("Priority: ", style: TextStyle(fontWeight: FontWeight.w500)),
+                const SizedBox(width: 12),
+                ...["low", "medium", "urgent"].map((priority) {
+                  final isSelected = _selectedPriority == priority;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: ChoiceChip(
+                      label: Text(priority.toUpperCase()),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        if (selected) setState(() => _selectedPriority = priority);
+                      },
+                      backgroundColor: _getPriorityColor(priority).withOpacity(0.2),
+                      selectedColor: _getPriorityColor(priority),
+                      labelStyle: TextStyle(
+                        color: isSelected ? Colors.white : Colors.black,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  );
+                }).toList(),
               ],
             ),
 

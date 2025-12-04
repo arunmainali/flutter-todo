@@ -6,6 +6,7 @@ class ToDoTile extends StatelessWidget {
   final String? subtitle;
   final DateTime? dueDate;
   final bool completed;
+  final String priority;
 
   final Function(bool?)? onChanged;
   final Function(BuildContext)? deleteTask;
@@ -17,6 +18,7 @@ class ToDoTile extends StatelessWidget {
     required this.subtitle,
     required this.dueDate,
     required this.completed,
+    required this.priority,
     required this.onChanged,
     required this.deleteTask,
     required this.onTapEdit,
@@ -32,6 +34,32 @@ class ToDoTile extends StatelessWidget {
     if (diff.inDays > 0) return "${diff.inDays} days left";
     if (diff.inHours > 0) return "${diff.inHours} hours left";
     return "${diff.inMinutes} minutes left";
+  }
+
+  Color _getPriorityColor() {
+    switch (priority) {
+      case "urgent":
+        return Colors.red;
+      case "medium":
+        return Colors.orange;
+      case "low":
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData _getPriorityIcon() {
+    switch (priority) {
+      case "urgent":
+        return Icons.priority_high;
+      case "medium":
+        return Icons.remove;
+      case "low":
+        return Icons.arrow_downward;
+      default:
+        return Icons.help;
+    }
   }
 
   @override
@@ -76,14 +104,25 @@ class ToDoTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      name,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        decoration: completed ? TextDecoration.lineThrough : null,
-                        color: completed ? Colors.black54 : Colors.black87,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            name,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              decoration: completed ? TextDecoration.lineThrough : null,
+                              color: completed ? Colors.black54 : Colors.black87,
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          _getPriorityIcon(),
+                          size: 18,
+                          color: _getPriorityColor(),
+                        ),
+                      ],
                     ),
 
                     if (subtitle != null && subtitle!.trim().isNotEmpty)

@@ -13,8 +13,12 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // 0 = All, 1 = Active, 2 = Completed
-  int _filterIndex = 0;
+  // Filter: 'all', 'active', 'completed', or a priority like 'urgent', 'medium', 'low'
+  String _filterType = 'all'; // 'all', 'active', 'completed', 'urgent', 'medium', 'low'
+  
+  // Order: 'none', 'priority', 'timeRemaining'
+  String _orderBy = 'none';
+
   final _myBox = Hive.box('mybox');
   ToDoDataBase db = ToDoDataBase();
 
@@ -30,17 +34,41 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  List<Map<String, dynamic>> get filteredTasks {
-    if (_filterIndex == 1) {
-      // Active only
-      return db.toDoList.where((task) => task['completed'] == false).toList();
-    } else if (_filterIndex == 2) {
-      // Completed only
-      return db.toDoList.where((task) => task['completed'] == true).toList();
-    }
-    return db.toDoList; // All
-  }
+  List<Map<String, dynamic>> get filteredAndSortedTasks {
+    // First, filter
+    List<Map<String, dynamic>> result = db.toDoList;
 
+    if (_filterType == 'active') {
+      result = result.where((task) => task['completed'] == false).toList();
+    } else if (_filterType == 'completed') {
+      result = result.where((task) => task['completed'] == true).toList();
+    } else if (['urgent', 'medium', 'low'].contains(_filterType)) {
+      result = result.where((task) => task['priority'] == _filterType).toList();
+    }
+
+    // Then, sort
+    if (_orderBy == 'priority') {
+      final priorityOrder = {'urgent': 0, 'medium': 1, 'low': 2};
+      result.sort((a, b) {
+        final aPriority = priorityOrder[a['priority'] ?? 'low'] ?? 2;
+        final bPriority = priorityOrder[b['priority'] ?? 'low'] ?? 2;
+        return aPriority.compareTo(bPriority);
+      });
+    } else if (_orderBy == 'timeRemaining') {
+      result.sort((a, b) {
+        final aDueDate = a['dueDate'] != null ? DateTime.tryParse(a['dueDate']) : null;
+        final bDueDate = b['dueDate'] != null ? DateTime.tryParse(b['dueDate']) : null;
+
+        if (aDueDate == null && bDueDate == null) return 0;
+        if (aDueDate == null) return 1;
+        if (bDueDate == null) return -1;
+
+        return aDueDate.compareTo(bDueDate);
+      });
+    }
+
+    return result;
+  }
 
   void checkBoxChanged(bool? value, int index) {
     setState(() {
@@ -55,12 +83,13 @@ class _HomePageState extends State<HomePage> {
     showDialog(
       context: context,
       builder: (context) => CreateTaskDialog(
-        onSave: (name, subtitle, dueDate) {
+        onSave: (name, subtitle, dueDate, priority) {
           setState(() {
             db.toDoList.add({
               "name": name,
               "subtitle": subtitle,
               "dueDate": dueDate?.toIso8601String(),
+              "priority": priority,
               "completed": false,
             });
           });
@@ -96,33 +125,88 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-Widget buildFilterButton(String text, int index) {
-  final bool selected = _filterIndex == index;
-
-  return Expanded(
-    child: GestureDetector(
-      onTap: () => setState(() => _filterIndex = index),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        decoration: BoxDecoration(
-          color: selected ? Colors.black.withOpacity(0.85) : Colors.black12,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          text,
-          style: TextStyle(
-            color: selected ? Colors.white : Colors.black87,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-          ),
-        ),
+  void _showFilterMenu(BuildContext context) {
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final RelativeRect position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        button.localToGlobal(Offset.zero, ancestor: overlay),
+        button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
       ),
-    ),
-  );
-}
+      Offset.zero & overlay.size,
+    );
 
+    showMenu<String>(
+      context: context,
+      position: position,
+      items: <PopupMenuEntry<String>>[
+        const PopupMenuItem<String>(
+          value: 'all',
+          child: Text("All Tasks"),
+        ),
+        const PopupMenuItem<String>(
+          value: 'active',
+          child: Text("Active"),
+        ),
+        const PopupMenuItem<String>(
+          value: 'completed',
+          child: Text("Completed"),
+        ),
+        const PopupMenuDivider(),
+        const PopupMenuItem<String>(
+          value: 'urgent',
+          child: Text("Urgent"),
+        ),
+        const PopupMenuItem<String>(
+          value: 'medium',
+          child: Text("Medium"),
+        ),
+        const PopupMenuItem<String>(
+          value: 'low',
+          child: Text("Low"),
+        ),
+      ],
+    ).then((value) {
+      if (value != null) {
+        setState(() => _filterType = value);
+      }
+    });
+  }
+
+  void _showOrderMenu(BuildContext context) {
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final RelativeRect position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        button.localToGlobal(Offset.zero, ancestor: overlay),
+        button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
+      ),
+      Offset.zero & overlay.size,
+    );
+
+    showMenu<String>(
+      context: context,
+      position: position,
+      items: <PopupMenuEntry<String>>[
+        const PopupMenuItem<String>(
+          value: 'none',
+          child: Text("No Sorting"),
+        ),
+        const PopupMenuItem<String>(
+          value: 'priority',
+          child: Text("By Priority"),
+        ),
+        const PopupMenuItem<String>(
+          value: 'timeRemaining',
+          child: Text("By Time Remaining"),
+        ),
+      ],
+    ).then((value) {
+      if (value != null) {
+        setState(() => _orderBy = value);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -144,96 +228,114 @@ Widget buildFilterButton(String text, int index) {
       ),
 
       body: Column(
-  children: [
-    const SizedBox(height: 18),
-
-    // FILTER BUTTON BAR
-    Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 22),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          buildFilterButton("All", 0),
-          buildFilterButton("Active", 1),
-          buildFilterButton("Completed", 2),
+          const SizedBox(height: 18),
+
+          // FILTER & ORDER BUTTON BAR
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 22),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Builder(
+                    builder: (context) => ElevatedButton.icon(
+                      onPressed: () => _showFilterMenu(context),
+                      icon: const Icon(Icons.filter_list),
+                      label: const Text("Filter"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.black.withOpacity(0.85),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Builder(
+                    builder: (context) => ElevatedButton.icon(
+                      onPressed: () => _showOrderMenu(context),
+                      icon: const Icon(Icons.sort),
+                      label: const Text("Order"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.black.withOpacity(0.85),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // LIST OR EMPTY VIEW
+          Expanded(
+            child: filteredAndSortedTasks.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          "No items here yet",
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          "Create tasks to organise your work better.",
+                          style: TextStyle(fontSize: 14, color: Colors.grey),
+                        ),
+                        const SizedBox(height: 18),
+                        ElevatedButton(
+                          onPressed: createNewTask,
+                          child: const Text("Create Task"),
+                        )
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.only(top: 10),
+                    itemCount: filteredAndSortedTasks.length,
+                    itemBuilder: (context, index) {
+                      final item = filteredAndSortedTasks[index];
+                      final name = item["name"] ?? "";
+                      final subtitle = item["subtitle"];
+                      final dueDateIso = item["dueDate"];
+                      final dueDate = dueDateIso == null
+                          ? null
+                          : DateTime.tryParse(dueDateIso);
+                      final priority = item["priority"] ?? "low";
+                      final completed = item["completed"] ?? false;
+
+                      final originalIndex = db.toDoList.indexOf(item);
+
+                      return ToDoTile(
+                        name: name,
+                        subtitle: subtitle,
+                        dueDate: dueDate,
+                        priority: priority,
+                        completed: completed,
+                        onChanged: (val) => checkBoxChanged(val, originalIndex),
+                        deleteTask: (context) => confirmAndDelete(originalIndex),
+                        onTapEdit: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => EditPage(
+                                index: originalIndex,
+                                dataBase: db,
+                              ),
+                            ),
+                          ).then((_) => setState(() {}));
+                        },
+                      );
+                    },
+                  ),
+          ),
         ],
       ),
-    ),
-
-    const SizedBox(height: 12),
-
-    // LIST OR EMPTY VIEW
-    Expanded(
-      child: filteredTasks.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    "No items here yet",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    "Create tasks to organise your work better.",
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 18),
-                  ElevatedButton(
-                    onPressed: createNewTask,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 28, vertical: 12
-                      ),
-                      backgroundColor: Colors.black, // main CTA
-                      foregroundColor: Colors.white,
-                    ),
-                    child: const Text("Create new item"),
-                  )
-                ],
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.only(top: 10),
-              itemCount: filteredTasks.length,
-              itemBuilder: (context, index) {
-                final item = filteredTasks[index];
-                final name = item["name"] ?? "";
-                final subtitle = item["subtitle"];
-                final dueDateIso = item["dueDate"];
-                final dueDate = dueDateIso == null
-                    ? null
-                    : DateTime.tryParse(dueDateIso);
-                final completed = item["completed"] ?? false;
-
-                // Get index inside main list for edit/delete
-                final originalIndex = db.toDoList.indexOf(item);
-
-                return ToDoTile(
-                  name: name,
-                  subtitle: subtitle,
-                  dueDate: dueDate,
-                  completed: completed,
-                  onChanged: (val) => checkBoxChanged(val, originalIndex),
-                  deleteTask: (context) => confirmAndDelete(originalIndex),
-                  onTapEdit: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => EditPage(
-                          index: originalIndex,
-                          dataBase: db,
-                        ),
-                      ),
-                    ).then((_) => setState(() {}));
-                  },
-                );
-              },
-            ),
-    ),
-  ],
-),
-
     );
   }
 }
