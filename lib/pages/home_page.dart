@@ -96,6 +96,34 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+Widget buildFilterButton(String text, int index) {
+  final bool selected = _filterIndex == index;
+
+  return Expanded(
+    child: GestureDetector(
+      onTap: () => setState(() => _filterIndex = index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          color: selected ? Colors.black.withOpacity(0.85) : Colors.black12,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          text,
+          style: TextStyle(
+            color: selected ? Colors.white : Colors.black87,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -115,45 +143,108 @@ class _HomePageState extends State<HomePage> {
         child: const Icon(Icons.add, size: 28),
       ),
 
-      body: db.toDoList.isEmpty
-          ? const Center(
-              child: Text(
-                "Nothing here yet.\nTap + to create one.",
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16),
+      body: Column(
+  children: [
+    const SizedBox(height: 20),
+
+    // "Things To Do" heading
+    Text(
+      "Things To Do",
+      style: const TextStyle(
+        fontSize: 26,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+
+    const SizedBox(height: 18),
+
+    // FILTER BUTTON BAR
+    Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 22),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          buildFilterButton("All", 0),
+          buildFilterButton("Active", 1),
+          buildFilterButton("Completed", 2),
+        ],
+      ),
+    ),
+
+    const SizedBox(height: 12),
+
+    // LIST OR EMPTY VIEW
+    Expanded(
+      child: filteredTasks.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    "No items here yet",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    "Create tasks to organise your work better.",
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 18),
+                  ElevatedButton(
+                    onPressed: createNewTask,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 28, vertical: 12
+                      ),
+                      backgroundColor: Colors.black, // main CTA
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text("Create new item"),
+                  )
+                ],
               ),
             )
           : ListView.builder(
-              padding: const EdgeInsets.only(top: 15, bottom: 80),
-              itemCount: db.toDoList.length,
+              padding: const EdgeInsets.only(top: 10),
+              itemCount: filteredTasks.length,
               itemBuilder: (context, index) {
-                final item = db.toDoList[index] as Map<String, dynamic>;
+                final item = filteredTasks[index];
+                final name = item["name"] ?? "";
+                final subtitle = item["subtitle"];
+                final dueDateIso = item["dueDate"];
+                final dueDate = dueDateIso == null
+                    ? null
+                    : DateTime.tryParse(dueDateIso);
+                final completed = item["completed"] ?? false;
 
-                final name = item['name']?.toString() ?? '';
-                final subtitle = item['subtitle']?.toString();
-                final dueIso = item['dueDate'] as String?;
-                final dueDate = dueIso == null ? null : DateTime.tryParse(dueIso);
-                final completed =
-                    item['completed'] is bool ? item['completed'] as bool : false;
+                // Get index inside main list for edit/delete
+                final originalIndex = db.toDoList.indexOf(item);
 
                 return ToDoTile(
                   name: name,
                   subtitle: subtitle,
                   dueDate: dueDate,
                   completed: completed,
-                  onChanged: (v) => checkBoxChanged(v, index),
-                  deleteTask: (context) => confirmAndDelete(index),
+                  onChanged: (val) => checkBoxChanged(val, originalIndex),
+                  deleteTask: (context) => confirmAndDelete(originalIndex),
                   onTapEdit: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => EditPage(index: index, dataBase: db),
+                        builder: (_) => EditPage(
+                          index: originalIndex,
+                          dataBase: db,
+                        ),
                       ),
                     ).then((_) => setState(() {}));
                   },
                 );
               },
             ),
+    ),
+  ],
+),
+
     );
   }
 }
