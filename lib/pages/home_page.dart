@@ -34,36 +34,47 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  List<Map<String, dynamic>> get filteredAndSortedTasks {
-    // First, filter
-    List<Map<String, dynamic>> result = db.toDoList;
+  // Helper to parse a stored date value (supports String or DateTime)
+  DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is String) return DateTime.tryParse(value);
+    return null;
+  }
 
+  List<Map<String, dynamic>> get filteredAndSortedTasks {
+    // Work on a copy so we don't mutate the underlying DB list
+    List<Map<String, dynamic>> result = List<Map<String, dynamic>>.from(db.toDoList);
+
+    // First, filter
     if (_filterType == 'active') {
       result = result.where((task) => task['completed'] == false).toList();
     } else if (_filterType == 'completed') {
       result = result.where((task) => task['completed'] == true).toList();
     } else if (['urgent', 'medium', 'low'].contains(_filterType)) {
-      result = result.where((task) => task['priority'] == _filterType).toList();
+      result = result.where((task) => (task['priority'] ?? 'low') == _filterType).toList();
     }
 
     // Then, sort
     if (_orderBy == 'priority') {
       final priorityOrder = {'urgent': 0, 'medium': 1, 'low': 2};
       result.sort((a, b) {
-        final aPriority = priorityOrder[a['priority'] ?? 'low'] ?? 2;
-        final bPriority = priorityOrder[b['priority'] ?? 'low'] ?? 2;
+        final aPriority = priorityOrder[(a['priority'] ?? 'low')] ?? 2;
+        final bPriority = priorityOrder[(b['priority'] ?? 'low')] ?? 2;
         return aPriority.compareTo(bPriority);
       });
     } else if (_orderBy == 'timeRemaining') {
+      // Sort by due date ascending (earliest / most urgent first).
+      // Items with no due date should come last.
       result.sort((a, b) {
-        final aDueDate = a['dueDate'] != null ? DateTime.tryParse(a['dueDate']) : null;
-        final bDueDate = b['dueDate'] != null ? DateTime.tryParse(b['dueDate']) : null;
+        final aDue = _parseDate(a['dueDate']);
+        final bDue = _parseDate(b['dueDate']);
 
-        if (aDueDate == null && bDueDate == null) return 0;
-        if (aDueDate == null) return 1;
-        if (bDueDate == null) return -1;
+        if (aDue == null && bDue == null) return 0;
+        if (aDue == null) return 1; // a after b
+        if (bDue == null) return -1; // a before b
 
-        return aDueDate.compareTo(bDueDate);
+        return aDue.compareTo(bDue);
       });
     }
 
@@ -305,7 +316,7 @@ class _HomePageState extends State<HomePage> {
                       final dueDateIso = item["dueDate"];
                       final dueDate = dueDateIso == null
                           ? null
-                          : DateTime.tryParse(dueDateIso);
+                          : _parseDate(dueDateIso);
                       final priority = item["priority"] ?? "low";
                       final completed = item["completed"] ?? false;
 

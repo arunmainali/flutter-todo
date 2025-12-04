@@ -156,30 +156,28 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
             const SizedBox(height: 14),
 
             // Priority selector
-            Row(
-              children: [
-                const Text("Priority: ", style: TextStyle(fontWeight: FontWeight.w500)),
-                const SizedBox(width: 12),
-                ...["low", "medium", "urgent"].map((priority) {
-                  final isSelected = _selectedPriority == priority;
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: ChoiceChip(
-                      label: Text(priority.toUpperCase()),
-                      selected: isSelected,
-                      onSelected: (selected) {
-                        if (selected) setState(() => _selectedPriority = priority);
-                      },
-                      backgroundColor: _getPriorityColor(priority).withOpacity(0.2),
-                      selectedColor: _getPriorityColor(priority),
-                      labelStyle: TextStyle(
-                        color: isSelected ? Colors.white : Colors.black,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ],
+            // Changed layout: label above the chips and chips are wrapped so they won't overflow.
+            const Text("Priority: ", style: TextStyle(fontWeight: FontWeight.w500)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: ["low", "medium", "urgent"].map((priority) {
+                final isSelected = _selectedPriority == priority;
+                return ChoiceChip(
+                  label: Text(priority.toUpperCase()),
+                  selected: isSelected,
+                  onSelected: (selected) {
+                    if (selected) setState(() => _selectedPriority = priority);
+                  },
+                  backgroundColor: _getPriorityColor(priority).withOpacity(0.2),
+                  selectedColor: _getPriorityColor(priority),
+                  labelStyle: TextStyle(
+                    color: isSelected ? Colors.white : Colors.black,
+                    fontWeight: FontWeight.w600,
+                  ),
+                );
+              }).toList(),
             ),
 
             const SizedBox(height: 22),
